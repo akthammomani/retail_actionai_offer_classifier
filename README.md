@@ -1,1 +1,1 @@
-# retail_actionai_offer_classifier
+# Retail ActionAI Offer Classifier
