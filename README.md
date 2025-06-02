@@ -11,7 +11,7 @@ This project is part of **Machine Learning: Fundamentals and Applications (AAI-5
 Grocery chains lose revenue every day by blasting the same coupons to everyone or by waiting too long to re-engage lapsed shoppers.  
 **Retail ActionAI** turns raw basket history into a simple answer to one question:
 
-*“What's the smartest action we can take for this customer right now?”*  
+***“What's the smartest action we can take for this customer right now?”*** 
 
 The app classifies each shopper into one of three actionable buckets—**Send Coupon**, **Upsell**, or **No Action**—so marketing teams can spend less and convert more.
 
