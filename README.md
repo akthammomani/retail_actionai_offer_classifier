@@ -1,6 +1,6 @@
 # **Retail ActionAI: Next-Best-Offer Classifier**
 
-This project is part of **Machine Learning: Fundamentals and Applications (AAI-510)** in the [Applied Artificial Intelligence M.S. program](https://onlinedegrees.sandiego.edu/masters-applied-artificial-intelligence/) at the **University of San Diego**.
+This project is part of **Machine Learning: Fundamentals and Applications (AAI-510)** course in the [Applied Artificial Intelligence M.S. program](https://onlinedegrees.sandiego.edu/masters-applied-artificial-intelligence/) at the **University of San Diego**.
 
 > **Project Status:** Ongoing
 
