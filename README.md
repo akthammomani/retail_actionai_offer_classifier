@@ -53,10 +53,7 @@ With a clean, feature-rich dataset and a well-framed target (`bought_next`), we'
 * Feature Engineering (reorder ratios, gap ratios, ..etc)  
 * Handling Imbalanced Classes  
 * Multiple models (Logistic Regression, RF, XGBoost, LightGBM and imbalanced-learn models)  
-* Hyperparameter Tuning with **Optuna**  
 * SHAP for Feature Importance  
-* Streamlit App Development & Deployment  
-
 
 
 ## **Technologies**
@@ -64,38 +61,67 @@ With a clean, feature-rich dataset and a well-framed target (`bought_next`), we'
 | Area | Stack |
 |------|-------|
 | **Core Language** | Python |
-| **Modeling** | Logistic Regression, RF, XGBoost, LightGBM and imbalanced-learn models |
-| **Tuning** | Optuna |
+| **Modeling** |  RF, XGBoost, LightGBM and imbalanced-learn models |
 | **Explainability** | SHAP |
-| **App** | Streamlit + a touch of HTML/CSS for polish |
-| **DevOps** | GitHub, GitHub Actions (CI linting), Streamlit Cloud |
 
+## **Data Wrangling**
 
+This step polishes the raw Instacart tables so they join cleanly, fit in memory, and feed the model reliable inputs. Below is the game-plan and what each sub-section tackles:
 
-## **Repository Contents**
+* **Data types:** keep integers small and consistent by:
+  * Cast join keys to compact ints (`int32`, `int16`, `int8`) so merges don't up-cast to `int64`.
+  * Down-cast the one float column (`days_since_prior_order`) to `float32` to save RAM.
 
+* **Remove duplicates:**  This will guarantee one factual row per record: 
+  * `df.drop_duplicates()` on every table—cheap insurance against accidental repeats.
+  * Leaner tables speed up the big merge and later group-bys.
 
+* **Joining the tables**: build a single, product-rich history view: 
+  * Merge `products `&rarr;` aisles `&rarr; `departments` into a **product lookup**.  
+  * Join that lookup to `order_products__prior`, then attach the `orders` header. The result **`prior_full`** has one row per product in every past basket, plus aisle, department, order time, etc.   
 
+* **Missing data**: Here we will plug the only nulls to keep the column fully numeric.
+  * `days_since_prior_order` is missing on a shopper's first-ever order. we'll 
+  fill with **0** (no prior gap) and convert to `int16`.
 
-## **Key Features**
+* **Object to category conversion:** We'll trim memory for small text columns by: 
+  *  Convert low-cardinality strings (`aisle`, `department`, `eval_set`) to `category`.  
+  * Leave `product_name` as plain text; ~50 K unique values mean categorising it bloats rather than helps. 
 
-* **One-Click Recommendation**: Drop in customer stats or a bulk CSV and see the recommended action.  
-* **Transparent Explanations**: Top SHAP factors displayed so marketers know *why* a shopper was flagged.  
-* **Batch or Real-Time**: CLI scripts support nightly scoring; the Streamlit app handles ad-hoc what-ifs (TBD)
-* **Lightweight Footprint**: Whole pipeline runs on a modest laptop; Cloud deploy is free-tier-friendly (TBD)
+## **Features Engineering & Exploratory Data Analysis (EDA)**
 
+This section answers the big “what, when, and how often” questions hidden in our cleaned Instacart history table.  
+W'll walk through four lenses—shopper, product, time, and user-product to guide feature design and model focus.
 
+* **Shopper profile**:  
+  * **Avg. order size**  
+  * **Avg. number of reorders per cart**  
+  * **Avg. days between orders**  
+  * **Avg. order hour** and **day of week**  
+  * How many total orders does each customer place?
 
-## **How It Works**
+* **Product snapshot**:  
+  * **Total orders per product**  
+  * **Times product was reordered** and **reorder probability**  
+  * Top aisles and departments by volume  
+  * Which products are frequently ordered or usually reordered?  
+  * Ratio of reordered versus newly ordered items.
 
-1. **Join & Clean**: Merge six Instacart tables (`orders`, `order_products__prior`, etc.) on `order_id` and `product_id`.  
-2. **Engineer Features**: Compute recency, frequency, avg basket size, reorder ratio, and gap ratio per shopper.  
-3. **Label**: Rule-based triage into **Send Coupon**, **Upsell**, or **No Action** using recency and basket metrics.  
-4. **Model**: Train multiple models: Logistic Regression, Random Forest, XGBoost, LightGBM.  
-5. **Explain**: Generate SHAP values to highlight drivers.  
-6. **Serve**: Expose predictions through a Streamlit web UI.
+* **Temporal patterns**:
+  * When do people place their orders? (hour-of-day and day-of-week heatmaps)  
+  * Cart size distribution over time.
 
+* **User x Product dynamics**:  
+  * **Avg. add-to-cart position** (normalized)  
+  * **Times a user bought a product** and **reorder frequency**  
+  * Orders and days since the last purchase of that item  
+  * Streaks of consecutive product orders.
 
+* **Data health checks**:  
+  * Recency/frequency histograms to spot long tails.  
+  * Flag outliers or ultra-rare categories that could skew the model.
+
+By the end of this EDA pass we'll know which signals are strongest, where class imbalance or sparsity lives, and which features to engineer first for our next-best-offer model.
 
 ## **Dataset**
 
@@ -106,16 +132,38 @@ With a clean, feature-rich dataset and a well-framed target (`bought_next`), we'
 * **Usage:** Joined on `order_id` and `product_id` to build a shopper-level panel for modeling.
 
 
+## Discussion & Conclusions
 
-## **Future Work**
+**Problem Recap**
 
-* Incorporate basket dollar values when available to predict incremental revenue uplift.  
-* Experiment with sequence models (Transformer, GRU) for fine-grained next-action timing.  
-* Add an **A/B simulation module** to estimate ROI of each action class.  
-* Containerize with Docker and add a REST endpoint.
+Our goal was to answer a key question for every user-product pair:
+
+> *“Will this person put this item in their very next order?”*
+
+By accurately predicting this, we aim to **spend promotional budget only where it influences behavior** — avoiding unnecessary discounts for likely buyers and targeting incentives to those on the edge.
 
 
-## **Installation**
+**What We Achieved**
+
+- Built a calibrated **buy-next model** that predicts purchase intent at the user-product level.
+- Created a rule-based **Next-Best-Offer engine** that classifies each row into `Coupon`, `Upsell`, or `None`.
+- Achieved a balanced NBO distribution:
+  - ~70% of offers need no action
+  - ~22% receive a coupon
+  - ~7% are good candidates for upsell
+
+This logic allows us to act efficiently and scalably, aligning offers with user behavior.
+
+
+**Recommendations**
+
+- **Deploy as a batch pipeline** to power CRM, app, or email personalization.
+- **Use real-time scoring** to refresh offers when carts change.
+- **Incorporate business data** like product margins, time-based recency, and customer segments for smarter targeting.
+- **Enhance with LLMs** for personalized explanations, dynamic copy, or segment tagging.
+
+
+With this system in place, Retail Action-AI can intelligently deliver the right offer, to the right shopper, at the right time — maximizing return on every promotion dollar.
 
 
 ## **License**
