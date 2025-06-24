@@ -45,6 +45,13 @@ So the core technical task is a **"buy-next" prediction** at the *(user, product
 
 With a clean, feature-rich dataset and a well-framed target (`bought_next`), we're ready to build the engine that turns raw basket data into profit-maximising next-best offers (NBO).
 
+**## **Dataset**
+
+* **Name:** Instacart Market Basket Analysis  
+* **Link:** <https://www.kaggle.com/datasets/psparks/instacart-market-basket-analysis>  
+* **Size:** ~3.4 M orders, 206 K customers, 30 K products  
+* **Schema:** Orders, order-product lines, product-aisle-department metadata.  
+* **Usage:** Joined on `order_id` and `product_id` to build a shopper-level panel for modeling.
 
 ## **Methods Used**
 
@@ -123,13 +130,60 @@ W'll walk through four lenses—shopper, product, time, and user-product to guid
 
 By the end of this EDA pass we'll know which signals are strongest, where class imbalance or sparsity lives, and which features to engineer first for our next-best-offer model.
 
-## **Dataset**
 
-* **Name:** Instacart Market Basket Analysis  
-* **Link:** <https://www.kaggle.com/datasets/psparks/instacart-market-basket-analysis>  
-* **Size:** ~3.4 M orders, 206 K customers, 30 K products  
-* **Schema:** Orders, order-product lines, product-aisle-department metadata.  
-* **Usage:** Joined on `order_id` and `product_id` to build a shopper-level panel for modeling.
+## **Modeling & Decision Engine - Notebook Plan**  
+
+This notebook takes the cleaned **`candidates`** matrix and turns it into a calibrated “buy-next” model plus the business rules that convert probabilities into offers.  
+No code below—just the play-by-play of what each section will do.
+
+---
+
+**Quick Feature Checks**
+
+* **Pearson correlation** on numeric columns  
+* **Mutual information** on numeric + categorical columns &rarr; rank useful predictors; drop MI &asymp; 0 if we need to slim width.  
+* Result: a leaner, high-signal feature set.
+
+**Train/Test Split & CatBoost Encoding**
+
+* 80 / 20 split, stratified on `bought_next`.  
+* Low-cardinality categoricals (`aisle`, `department`, `peak_dow`) encoded with **CatBoostEncoder** (target-aware, leakage-safe).  
+* Numeric features stay as-is; long-tail columns were winsorised earlier.
+
+**Modeling**
+
+Train five imbalance-aware tree ensembles:  
+
+| model | imbalance trick |
+|-------|-----------------|
+| Random Forest | `class_weight='balanced'` |
+| LightGBM | `class_weight='balanced'` |
+| XGBoost | `scale_pos_weight &asymp; 15` |
+| Balanced Bagging (LightGBM base) | under-samples negatives in each bag |
+| Easy Ensemble (LightGBM base) | AdaBoost on balanced bags |
+
+Metrics collected: **ROC-AUC**, F1 and recall.  
+
+**Next-Best-Offer Logic**
+
+*For each user-product candidate in production:*  
+
+* Get `p_buy` from the calibrated model.  
+* Apply business rule thresholds:
+  - If `p_buy > 0.8` &rarr; assign **"None"** (likely buyer; no incentive needed).
+  - If `0.3 < p_buy ≤ 0.8`:
+    - If user is **engaged** (`user_total_orders > 10` and `avg_basket_size > 5`) &rarr; assign **"Upsell"**.
+    - Else &rarr; assign **"Coupon"**.
+  - If `p_buy ≤ 0.3` &rarr; assign **"Coupon"** (low intent, needs incentive).
+* This rule-based approach blends behavioral segmentation with predictive modeling.
+
+**Save Artifacts**
+
+* Calibrated model (`.pkl`)  
+* CatBoost encoder (`.pkl`)  
+* Final feature list  
+
+With these pieces we can deploy a real-time API that scores the active cart, runs the EV maths, and surfaces the smartest next-best offer.
 
 
 ## Discussion & Conclusions
