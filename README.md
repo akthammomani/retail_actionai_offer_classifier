@@ -8,23 +8,43 @@ This project is part of **Machine Learning: Fundamentals and Applications (AAI-5
 
 ## **Introduction**
 
-Grocery chains lose revenue every day by blasting the same coupons to everyone or by waiting too long to re-engage lapsed shoppers.  
-**Retail ActionAI** turns raw basket history into a simple answer to one question:
+**Problem statement**
 
-***“What's the smartest action we can take for this customer right now?”*** 
+Retail ActionAI has one clear business goal: **spend every promotion dollar where it actually changes behaviour.**  
+Using Instacart's historical baskets, we want to answer—**for each shopper-item pair right now**:
 
-The app classifies each shopper into one of three actionable buckets—**Send Coupon**, **Upsell**, or **No Action**—so marketing teams can spend less and convert more.
+> *“Will this person put this item in their very next order?”*
+
+If the answer is **very likely**, a coupon is wasted.  
+If it's **unlikely but within reach**, a smart offer—like a discount or upsell—might win the sale.  
+So the core technical task is a **"buy-next" prediction** at the *(user, product)* level.
+
+**Justification for this formulation**
+
+* **Granular ROI**: Modeling individual user-product pairs helps us apply offers with precision.
+* **Behavior-Aware Offers**: Based on user engagement and purchase intent, we tailor offers (coupon, upsell, or none).
+* **Operational Flexibility**: The business layer can evolve rules (e.g., budget caps, product exclusions) without retraining the model.
+
+**Proposed approach**
+
+| Layer | Role |
+|-------|------|
+| **Feature Engineering** | Turn raw basket logs into rich shopper, product, time, and user-product features |
+| **Binary Classifier** | Predict `p_buy = P(item appears in shopper's next order)` |
+| **NBO Assignment Logic** | Use `p_buy` and behavioral thresholds to choose between **"None"**, **"Coupon"**, or **"Upsell"** |
 
 
+**Notebook roadmap** 
 
-## **Objectives**
+| Stage | What We Do | Key Artefacts |
+|-------|------------|---------------|
+| **Data Wrangling** | Load Instacart data, optimize dtypes, join look-ups &rarr; `prior_full` | Cleaned basket log |
+| **Feature Engineering** | Create:<br>• Shopper features<br>• Product features<br>• Time features<br>• User x Product interactions | 4 feature blocks |
+| **Modeling Dataset** | Build labeled matrix with `bought_next`, clip outliers, balance classes | `candidates` dataset |
+| **Model Training + NBO Engine** | Calibrate a model, score each row, apply NBO rules | Model + business logic layer |
 
-1. **Data-Driven Segmentation**: Translate Instacart basket logs into shopper-level features (recency, frequency, basket size, reorder ratio).  
-2. **Multi-Class Classification**: Train multiple models (Logistic Regression, RF, XGBoost, LightGBM and imbalanced-learn models) that predict the next-best action with strong recall on high-value segments.  
-3. **Explainability First**: Utilize SHAP explanations so analysts can see *why* a customer was routed to a specific action.  
-4. **App-Ready Delivery**: Wrap the model in a Streamlit interface that anyone can use—upload a CSV or type a customer ID and get an instant recommendation.
+With a clean, feature-rich dataset and a well-framed target (`bought_next`), we're ready to build the engine that turns raw basket data into profit-maximising next-best offers (NBO).
 
----
 
 ## **Methods Used**
 
