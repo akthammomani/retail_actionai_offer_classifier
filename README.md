@@ -45,7 +45,7 @@ So the core technical task is a **"buy-next" prediction** at the *(user, product
 
 With a clean, feature-rich dataset and a well-framed target (`bought_next`), we're ready to build the engine that turns raw basket data into profit-maximising next-best offers (NBO).
 
-**## **Dataset**
+## **Dataset**
 
 * **Name:** Instacart Market Basket Analysis  
 * **Link:** <https://www.kaggle.com/datasets/psparks/instacart-market-basket-analysis>  
